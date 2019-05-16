@@ -189,44 +189,62 @@
     },
 
     get: function(attrs, options) {
-      options = options || {};
-      var Model = this.Model;
-      var id = attrs && attrs[Model.prototype.idAttribute];
+      return new Promise((resolve, reject) => {
+        options = options || {};
+        var Model = this.Model;
+        var id = attrs && attrs[Model.prototype.idAttribute];
 
-      // If there's no ID, this model isn't being tracked; return
-      // a new instance
-      if (!id)
-        return this.newModel(attrs, options);
+        const waitForGetFromStorage = () => {
+          return new Promise((resolveInner, rejectInner) => {
+            // If there's no ID, this model isn't being tracked; return
+            // a new instance
+            if (!id)
+              return this.newModel(attrs, options);
 
-      // Attempt to restore a locally cached instance
-      var instance = this.instances[id];
+            // Attempt to restore a locally cached instance
+            var instance = this.instances[id];
 
-      // Attempt to restore a cached instance from storage
-      if (this.storage &&
+            // Attempt to restore a cached instance from storage
+            if (this.storage &&
 
-        // if this wasn't from a storage event
-        !options.fromStorage &&
+              // if this wasn't from a storage event
+              !options.fromStorage &&
 
-        // and there isn't already an existing instance
-        !instance
-      ) {
-        var instanceAttrs = this.storage.getFromStorage(this.storage.getStorageKey(id));
-        if (instanceAttrs)
-          instance = this.add(id, instanceAttrs, options);
-      }
+              // and there isn't already an existing instance
+              !instance
+            ) {
+              // var instanceAttrs = this.storage.getFromStorage(this.storage.getStorageKey(id));
+              this.storage.getFromStorage(this.storage.getStorageKey(id))
+                .then((instanceAttrs) => {
+                  if (instanceAttrs) {
+                    instanceAttrs = JSON.parse(instanceAttrs);
+                    console.dir(instanceAttrs);
+                    instance = this.add(id, instanceAttrs, options);
+                  }
+                  resolveInner(instance);
+                });
+            } else {
+              resolveInner();
+            }
+          });
+        };
 
-      if (!instance) {
-        // If we haven't seen this instance before, start caching it
-        instance = this.add(id, attrs, options);
-        if (options.fromStorage)
-          this.modelConstructor.trigger('uniquemodel.add', instance);
-      } else {
-        // Otherwise update the attributes of the cached instance
-        instance.set(attrs);
-        if (!options.fromStorage)
-          this.instanceSync(instance);
-      }
-      return instance;
+        waitForGetFromStorage()
+          .then((instance) => {
+            if (!instance) {
+              // If we haven't seen this instance before, start caching it
+              instance = this.add(id, attrs, options);
+              if (options.fromStorage)
+                this.modelConstructor.trigger('uniquemodel.add', instance);
+            } else {
+              // Otherwise update the attributes of the cached instance
+              instance.set(attrs);
+              if (!options.fromStorage)
+                this.instanceSync(instance);
+            }
+            resolve(instance);
+          });
+      });
     }
   });
 
@@ -295,7 +313,9 @@
 
     getFromStorage: function(key) {
       try {
-        return JSON.parse(this.store.getItem(key));
+        // return JSON.parse(this.store.getItem(key));
+        // localForage's getItem is a promise, so return it and handle later
+        return this.store.getItem(key);
       } catch (err) {
         return;
       }
