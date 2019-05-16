@@ -4,16 +4,16 @@
 
   // try AMD
   if (typeof define === 'function' && define.amd) {
-    define(['backbone'], function (Backbone) {
+    define(['backbone'], function(Backbone) {
       Backbone.UniqueModel = factory(Backbone);
     });
 
-  // Next for Node.js or CommonJS
+    // Next for Node.js or CommonJS
   } else if (typeof exports !== 'undefined') {
     var Backbone = require('backbone');
     Backbone.UniqueModel = factory(Backbone);
 
-  // else just attach to the Backbone global
+    // else just attach to the Backbone global
   } else {
     root.Backbone.UniqueModel = factory(root.Backbone);
   }
@@ -52,7 +52,7 @@
   UniqueModel.STORAGE_NAMESPACE = 'UniqueModel';
 
   // Returns the cache associated with the given Model.
-  UniqueModel.getModelCache = function (modelName) {
+  UniqueModel.getModelCache = function(modelName) {
     var cache = globalCache[modelName];
     if (!cache)
       throw "Unrecognized model: " + modelName;
@@ -60,7 +60,7 @@
     return cache;
   };
 
-  UniqueModel.addModel = function (Model, modelName, storageAdapter) {
+  UniqueModel.addModel = function(Model, modelName, storageAdapter) {
     // Throw error here? (added twice)
     if (globalCache[modelName])
       return globalCache[modelName];
@@ -71,7 +71,7 @@
   };
 
   // Clears all in-memory instances
-  UniqueModel.clear = function () {
+  UniqueModel.clear = function() {
     for (var modelName in globalCache) {
       if (globalCache.hasOwnProperty(modelName))
         delete globalCache[modelName];
@@ -82,7 +82,7 @@
    * Encapsulates a cache for a single model.
    */
 
-  function ModelCache (Model, modelName, storageAdapter) {
+  function ModelCache(Model, modelName, storageAdapter) {
     var self = this;
 
     this.instances = {};
@@ -95,13 +95,17 @@
     } else if (storageAdapter === 'sessionStorage') {
       this.storage = new StorageAdapter(this.modelName, sessionStorage);
     }
+    // CRA customization to add support for localforage
+    else if (storageAdapter === 'localforage' && localforage) {
+      this.storage = new StorageAdapter(this.modelName, localforage);
+    }
 
     if (this.storage) {
       this.storage.on('sync', this.storageSync, this);
       this.storage.on('destroy', this.storageDestroy, this);
     }
 
-    var modelConstructor = function (attrs, options) {
+    var modelConstructor = function(attrs, options) {
       return self.get(attrs, options);
     };
 
@@ -120,13 +124,13 @@
 
   _.extend(ModelCache.prototype, {
 
-    newModel: function (attrs, options) {
+    newModel: function(attrs, options) {
       var instance = new this.Model(attrs, options);
 
       if (!instance.id) {
         // If this model currently has no id, but gains one later (e.g. via sync),
         // then add it to the list of tracked instances
-        instance.once('change:' + instance.idAttribute, function () {
+        instance.once('change:' + instance.idAttribute, function() {
           if (!this.instances[instance.id])
             this.instances[instance.id] = instance;
         }, this);
@@ -144,13 +148,13 @@
     },
 
     // Event handler when 'sync' is triggered on an instance
-    instanceSync: function (instance) {
+    instanceSync: function(instance) {
       if (this.storage)
         this.storage.save(instance.id, instance.attributes);
     },
 
     // Event handler when 'destroy' is triggered on an instance
-    instanceDestroy: function (instance) {
+    instanceDestroy: function(instance) {
       var id = instance.id;
       if (this.storage)
         this.storage.remove(id);
@@ -162,12 +166,14 @@
     },
 
     // Event handler when 'sync' is triggered on the storage adapter
-    storageSync: function (id, attrs) {
-      this.get(attrs, { fromStorage: true });
+    storageSync: function(id, attrs) {
+      this.get(attrs, {
+        fromStorage: true
+      });
     },
 
     // Event handler when 'destroy' is triggered on the storage handler
-    storageDestroy: function (id) {
+    storageDestroy: function(id) {
       var instance = this.instances[id];
       if (instance) {
         instance.trigger('destroy', instance);
@@ -175,14 +181,14 @@
       }
     },
 
-    add: function (id, attrs, options) {
+    add: function(id, attrs, options) {
       var instance = this.newModel(attrs, options);
       this.instances[id] = instance;
 
       return instance;
     },
 
-    get: function (attrs, options) {
+    get: function(attrs, options) {
       options = options || {};
       var Model = this.Model;
       var id = attrs && attrs[Model.prototype.idAttribute];
@@ -196,17 +202,17 @@
       var instance = this.instances[id];
 
       // Attempt to restore a cached instance from storage
-      if(this.storage &&
+      if (this.storage &&
 
-         // if this wasn't from a storage event
-         !options.fromStorage &&
+        // if this wasn't from a storage event
+        !options.fromStorage &&
 
-         // and there isn't already an existing instance
-         !instance
-        ) {
-          var instanceAttrs = this.storage.getFromStorage(this.storage.getStorageKey(id));
-          if (instanceAttrs)
-            instance = this.add(id, instanceAttrs, options);
+        // and there isn't already an existing instance
+        !instance
+      ) {
+        var instanceAttrs = this.storage.getFromStorage(this.storage.getStorageKey(id));
+        if (instanceAttrs)
+          instance = this.add(id, instanceAttrs, options);
       }
 
       if (!instance) {
@@ -229,7 +235,7 @@
    * so that this can be swapped out for another adapter (i.e.
    * sessionStorage or a localStorage-backed library like lscache)
    */
-  function StorageAdapter (modelName, store) {
+  function StorageAdapter(modelName, store) {
     this.modelName = modelName;
     this.store = store;
 
@@ -249,7 +255,7 @@
   // Reference to the global onstorage handler
   StorageAdapter.listener = null;
 
-  StorageAdapter.onStorage = function (evt) {
+  StorageAdapter.onStorage = function(evt) {
     // TODO: IE fires onstorage even in the window that fired the
     //       change. Deal with that somehow.
     var key = evt.key;
@@ -260,8 +266,8 @@
     // Example regex output: /UniqueModel\.(\w+)\.(.+)/
     var re = new RegExp([
       UniqueModel.STORAGE_NAMESPACE, // namespace (default is UniqueModel)
-      '(\\w+)',                      // class name
-      '(.+)'                         // key
+      '(\\w+)', // class name
+      '(.+)' // key
     ].join('\\' + UniqueModel.STORAGE_KEY_DELIMETER));
 
     var match = key.match(re);
@@ -279,7 +285,7 @@
   };
 
   _.extend(StorageAdapter.prototype, {
-    handleStorageEvent: function (key, id) {
+    handleStorageEvent: function(key, id) {
       var attrs = this.getFromStorage(key);
       if (!attrs)
         this.trigger('destroy', id);
@@ -287,7 +293,7 @@
         this.trigger('sync', id, attrs);
     },
 
-    getFromStorage: function (key) {
+    getFromStorage: function(key) {
       try {
         return JSON.parse(this.store.getItem(key));
       } catch (err) {
@@ -295,7 +301,7 @@
       }
     },
 
-    getStorageKey: function (id) {
+    getStorageKey: function(id) {
       // e.g. UniqueModel.User.12345
       var str = [
         UniqueModel.STORAGE_NAMESPACE,
@@ -306,7 +312,7 @@
       return str;
     },
 
-    save: function (id, attrs) {
+    save: function(id, attrs) {
       if (!id)
         throw 'Cannot save without id';
 
@@ -314,7 +320,7 @@
       this.store.setItem(this.getStorageKey(id), json);
     },
 
-    remove: function (id) {
+    remove: function(id) {
       if (!id)
         throw 'Cannot remove without id';
 

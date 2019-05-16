@@ -3,6 +3,8 @@ Backbone.UniqueModel
 
 Backbone.UniqueModel ensures unique model instances across your application. It will also synchronize model data between windows/iframes using localStorage.
 
+This fork adds support for [localForage ](https://github.com/localForage/localForage) as a storage adapter.
+
 ## Usage
 
 ### Instantiating models
