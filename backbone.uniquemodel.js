@@ -295,9 +295,11 @@
         this.trigger('sync', id, attrs);
     },
 
-    getFromStorage: function(key) {
+    // CRA customization to make getFromStorage() async and use await for this.store.getItem() to support local forage being async
+    getFromStorage: async function(key) {
       try {
-        return JSON.parse(this.store.getItem(key));
+        const item = await this.store.getItem(key);
+        return JSON.parse(item);
       } catch (err) {
         return;
       }
