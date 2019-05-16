@@ -188,7 +188,8 @@
       return instance;
     },
 
-    get: function(attrs, options) {
+    // CRA customization to make get() async and use await for this.getFromStorage() to support local forage being async
+    get: async function(attrs, options) {
       options = options || {};
       var Model = this.Model;
       var id = attrs && attrs[Model.prototype.idAttribute];
@@ -210,7 +211,7 @@
         // and there isn't already an existing instance
         !instance
       ) {
-        var instanceAttrs = this.storage.getFromStorage(this.storage.getStorageKey(id));
+        var instanceAttrs = await this.storage.getFromStorage(this.storage.getStorageKey(id));
         if (instanceAttrs)
           instance = this.add(id, instanceAttrs, options);
       }
@@ -285,8 +286,9 @@
   };
 
   _.extend(StorageAdapter.prototype, {
-    handleStorageEvent: function(key, id) {
-      var attrs = this.getFromStorage(key);
+    // CRA customization to make handleStorageEvent() async and use await for this.getFromStorage() to support local forage being async
+    handleStorageEvent: async function(key, id) {
+      var attrs = await this.getFromStorage(key);
       if (!attrs)
         this.trigger('destroy', id);
       else
