@@ -138,7 +138,8 @@
 
       if (this.storage) {
         if (instance.id)
-          this.storage.save(instance.id, instance.attributes);
+          // Use model toJSON() so it can be overridden and data saving can be configurable
+          this.storage.save(instance.id, instance.toJSON());
       }
 
       instance.on('sync', this.instanceSync, this);
@@ -150,7 +151,8 @@
     // Event handler when 'sync' is triggered on an instance
     instanceSync: function(instance) {
       if (this.storage)
-        this.storage.save(instance.id, instance.attributes);
+        // Use model toJSON() so it can be overridden and data saving can be configurable
+        this.storage.save(instance.id, instance.toJSON());
     },
 
     // Event handler when 'destroy' is triggered on an instance
